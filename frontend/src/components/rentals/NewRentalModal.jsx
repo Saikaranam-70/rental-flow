@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from 'react-query';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { customersAPI, inventoryAPI, rentalsAPI } from '../../api';
 import { Modal, Button, Input, Textarea } from '../ui';
@@ -11,6 +12,7 @@ import { ClipboardList, Search, Info, Check, Shield, FileText, Upload, Printer, 
 export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleId }) {
   const { t, language } = useLangStore();
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [customerDetails, setCustomerDetails] = useState({
     name: '', phone: '', email: '', aadhaarNumber: '', dlNumber: '', passportNumber: '', voterIdNumber: '', address: '', city: '',
     aadhaarFrontUrl: null, aadhaarBackUrl: null, dlFrontUrl: null, dlBackUrl: null,
@@ -63,6 +65,14 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
 
   const baseAmount = selectedItem ? days * selectedItem.dailyRate : 0;
   const totalAmount = Math.max(0, baseAmount - (parseFloat(form.discountAmount) || 0));
+
+  const handleClose = () => {
+    onSuccess?.();
+    onClose();
+    if (createdRentalData) {
+      navigate(`/rentals/${createdRentalData._id}`);
+    }
+  };
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setCust = (k, v) => setCustomerDetails(c => ({ ...c, [k]: v }));
@@ -423,8 +433,8 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
     }, language);
 
     return (
-      <Modal title="Rental Confirmed!" onClose={() => { onSuccess?.(); onClose(); }}>
-        <div className="space-y-6 text-center py-4 flex flex-col items-center">
+      <Modal title="Rental Confirmed!" onClose={handleClose}>
+        <div className="space-y-6 text-center py-4 flex flex-col items-center flex-wrap">
           <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center border border-green-150 shadow-sm animate-bounce">
             <Check size={36} strokeWidth={3} />
           </div>
@@ -478,7 +488,7 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
           </div>
 
           <div className="pt-4 border-t border-gray-150 w-full">
-            <Button className="w-full min-h-[44px]" onClick={() => { onSuccess?.(); onClose(); }}>
+            <Button className="w-full min-h-[44px]" onClick={handleClose}>
               Done / Close
             </Button>
           </div>
