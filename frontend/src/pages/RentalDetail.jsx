@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import { rentalsAPI, customersAPI } from '../api';
 import { fmt, fmtDate, fmtDateTime, categoryIcon, getErrorMessage, overdueDays } from '../utils/helpers';
-import { Card, Button, Badge, Avatar, Modal, DynamicIcon } from '../components/ui';
+import { Card, Button, Badge, Avatar, Modal, DynamicIcon, Input, Textarea } from '../components/ui';
 import useLangStore, { getWhatsAppLink } from '../store/langStore';
 import useAuthStore from '../store/authStore';
 import { ChevronLeft, FileText, Receipt, AlertTriangle, Phone, Mail, User, Info, Plus, MessageCircle, MapPin, Upload, Eye } from 'lucide-react';

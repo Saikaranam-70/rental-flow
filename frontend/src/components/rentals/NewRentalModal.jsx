@@ -4,13 +4,17 @@ import toast from 'react-hot-toast';
 import { customersAPI, inventoryAPI, rentalsAPI } from '../../api';
 import { Modal, Button, Input, Textarea } from '../ui';
 import { fmt, categoryIcon, getErrorMessage } from '../../utils/helpers';
-import useLangStore from '../../store/langStore';
-import { ClipboardList, Search, Info, Check, Shield, FileText, Upload } from 'lucide-react';
+import useLangStore, { getWhatsAppLink } from '../../store/langStore';
+import useAuthStore from '../../store/authStore';
+import { ClipboardList, Search, Info, Check, Shield, FileText, Upload, Printer, MessageCircle, AlertTriangle } from 'lucide-react';
 
 export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleId }) {
-  const { t } = useLangStore();
+  const { t, language } = useLangStore();
+  const { user } = useAuthStore();
   const [customerDetails, setCustomerDetails] = useState({
-    name: '', phone: '', email: '', aadhaarNumber: '', dlNumber: '', passportNumber: '', voterIdNumber: '', address: '', city: ''
+    name: '', phone: '', email: '', aadhaarNumber: '', dlNumber: '', passportNumber: '', voterIdNumber: '', address: '', city: '',
+    aadhaarFrontUrl: null, aadhaarBackUrl: null, dlFrontUrl: null, dlBackUrl: null,
+    passportUrl: null, passportBackUrl: null, voterIdUrl: null, voterIdBackUrl: null
   });
   
   const [form, setForm] = useState({
@@ -31,6 +35,8 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
     voterid_back: null,
   });
   const [vehicleSearch, setVehicleSearch] = useState('');
+  const [createdRentalData, setCreatedRentalData] = useState(null);
+  const [blacklistWarning, setBlacklistWarning] = useState(null);
 
   const { data: invData } = useQuery('inventory-available', () =>
     inventoryAPI.getAll({ status: 'available', limit: 100 })
@@ -61,17 +67,45 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setCust = (k, v) => setCustomerDetails(c => ({ ...c, [k]: v }));
 
-  const [blacklistWarning, setBlacklistWarning] = useState(null);
-
   const handlePhoneChange = async (phoneVal) => {
     setCust('phone', phoneVal);
     if (phoneVal.length >= 10) {
       try {
-        const res = await customersAPI.getAll({ search: phoneVal.trim(), isBlacklisted: true });
-        const blacklistedList = res.data?.data || [];
-        const match = blacklistedList.find(c => c.phone.trim() === phoneVal.trim());
+        const res = await customersAPI.getAll({ search: phoneVal.trim() });
+        const customersList = res.data?.data || [];
+        const match = customersList.find(c => c.phone.trim() === phoneVal.trim());
         if (match) {
-          setBlacklistWarning(match.blacklistReason || 'This customer is blacklisted!');
+          if (match.isBlacklisted) {
+            setBlacklistWarning(match.blacklistReason || 'This customer is blacklisted!');
+          } else {
+            setBlacklistWarning(null);
+          }
+          
+          setCustomerDetails({
+            name: match.name || '',
+            phone: match.phone || '',
+            email: match.email || '',
+            aadhaarNumber: match.aadhaarNumber || '',
+            dlNumber: match.dlNumber || '',
+            passportNumber: match.passportNumber || '',
+            voterIdNumber: match.voterIdNumber || '',
+            address: match.address || '',
+            city: match.city || '',
+            aadhaarFrontUrl: match.aadhaarFrontUrl || null,
+            aadhaarBackUrl: match.aadhaarBackUrl || null,
+            dlFrontUrl: match.dlFrontUrl || null,
+            dlBackUrl: match.dlBackUrl || null,
+            passportUrl: match.passportUrl || null,
+            passportBackUrl: match.passportBackUrl || null,
+            voterIdUrl: match.voterIdUrl || null,
+            voterIdBackUrl: match.voterIdBackUrl || null,
+          });
+
+          if (match.passportNumber) setOtherDocType('passport');
+          else if (match.voterIdNumber) setOtherDocType('voterid');
+          else setOtherDocType('none');
+
+          toast.success('Existing customer details auto-filled!');
         } else {
           setBlacklistWarning(null);
         }
@@ -112,9 +146,8 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
       const rental = res.data.data;
       const targetCustomerId = rental.customerId?._id || rental.customerId;
 
-      // Upload files
+      // Upload files sequentially
       if (targetCustomerId) {
-        const uploadPromises = [];
         const fileMap = [];
 
         // Aadhaar
@@ -134,29 +167,325 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
           if (files.voterid_back) fileMap.push(['voterid', 'back', files.voterid_back]);
         }
 
-        for (const [idType, side, file] of fileMap) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('idType', idType);
-          formData.append('side', side);
-          uploadPromises.push(customersAPI.uploadId(targetCustomerId, formData));
-        }
-
-        if (uploadPromises.length > 0) {
-          toast.loading('Uploading documents...', { id: 'doc-upload' });
-          await Promise.all(uploadPromises);
+        if (fileMap.length > 0) {
+          let count = 0;
+          for (const [idType, side, file] of fileMap) {
+            count++;
+            toast.loading(`Uploading document ${count} of ${fileMap.length}...`, { id: 'doc-upload' });
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('idType', idType);
+            formData.append('side', side);
+            await customersAPI.uploadId(targetCustomerId, formData);
+          }
           toast.success('Documents uploaded successfully!', { id: 'doc-upload' });
         }
       }
 
       toast.success('Rental created successfully! 🎉');
-      onSuccess?.();
+      setCreatedRentalData(rental);
     } catch (err) {
       toast.error(getErrorMessage(err), { id: 'doc-upload' });
     } finally {
       setLoading(false);
     }
   };
+
+  const handlePrint = (type) => {
+    if (!createdRentalData) return;
+    const rental = createdRentalData;
+    const customer = rental.customerId;
+    const item = rental.inventoryId;
+    const pending = rental.totalAmount + rental.depositAmount;
+
+    const printWindow = window.open('', '_blank', 'width=800,height=800');
+    let contentHtml = '';
+    
+    if (type === 'invoice') {
+      contentHtml = `
+        <div class="invoice-box">
+          <div class="invoice-header">
+            <div>
+              <div class="invoice-title">${user?.agencyName?.toUpperCase() || 'RENTFLOW CRM'}</div>
+              <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Smart Rental CRM Invoice</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-weight: bold; font-size: 16px; color: #111827;">${rental.rentalNumber}</div>
+              <div style="font-size: 12px; color: #4b5563;">Date: ${new Date(rental.createdAt).toLocaleDateString('en-IN')}</div>
+              <div style="font-size: 12px; color: #4b5563;">Status: <span style="text-transform: uppercase; font-weight: bold; color: #2563eb;">ACTIVE</span></div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <h4 style="margin: 0 0 8px 0; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">CUSTOMER DETAILS</h4>
+              <strong>Name:</strong> ${customer?.name || '—'}<br>
+              <strong>Phone:</strong> ${customer?.phone || '—'}<br>
+              ${customer?.email ? `<strong>Email:</strong> ${customer.email}<br>` : ''}
+              ${customerDetails.address ? `<strong>Address:</strong> ${customerDetails.address}, ${customerDetails.city || ''}<br>` : ''}
+            </div>
+            <div>
+              <h4 style="margin: 0 0 8px 0; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">RENTAL DETAILS</h4>
+              <strong>Vehicle:</strong> ${item?.name || '—'}<br>
+              <strong>Registration:</strong> ${item?.registrationNumber && item.registrationNumber !== 'N/A' ? item.registrationNumber : '—'}<br>
+              <strong>Start Date:</strong> ${new Date(rental.startDate).toLocaleDateString('en-IN')}<br>
+              <strong>Return Date:</strong> ${new Date(rental.expectedReturnDate).toLocaleDateString('en-IN')}<br>
+              <strong>Duration:</strong> ${rental.totalDays} Days<br>
+              <strong>Daily Rate:</strong> ₹${rental.dailyRate}/day<br>
+            </div>
+          </div>
+
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th style="text-align: right;">Days</th>
+                <th style="text-align: right;">Rate</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Rental charges for ${item?.name || 'Vehicle'}</td>
+                <td style="text-align: right;">${rental.totalDays}</td>
+                <td style="text-align: right;">₹${rental.dailyRate}</td>
+                <td style="text-align: right;">₹${rental.baseAmount}</td>
+              </tr>
+              ${rental.discountAmount > 0 ? `
+                <tr>
+                  <td>Discount applied</td>
+                  <td style="text-align: right;">—</td>
+                  <td style="text-align: right;">—</td>
+                  <td style="text-align: right; color: #16a34a;">- ₹${rental.discountAmount}</td>
+                </tr>
+              ` : ''}
+            </tbody>
+          </table>
+
+          <div style="display: flex; justify-content: space-between; gap: 40px;">
+            <div>
+              <h4 style="margin: 0 0 8px 0; color: #374151;">TERMS & CONDITIONS</h4>
+              <div style="font-size: 11px; color: #6b7280; max-width: 400px; line-height: 1.5;">
+                1. The renter is responsible for traffic violations & vehicle damage during the rental period.<br>
+                2. Vehicle must be returned with the same level of fuel as at rental start.<br>
+                3. Late returns will attract overdue fee. Overdue days count towards extra daily rate charges.<br>
+              </div>
+            </div>
+            <div class="total-section">
+              <div class="total-row"><span>Subtotal:</span> <span>₹${rental.totalAmount}</span></div>
+              <div class="total-row"><span>Security Deposit:</span> <span>₹${rental.depositAmount}</span></div>
+              <div class="total-row total-bold">
+                <span>Balance Due:</span>
+                <span>₹${pending}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <div class="signature-line">Renter Signature</div>
+            <div class="signature-line">Authorized Signatory</div>
+          </div>
+        </div>
+      `;
+    } else if (type === 'slip') {
+      contentHtml = `
+        <div class="header">
+          <h2 style="margin: 0; font-size: 18px; letter-spacing: 1px;">${user?.agencyName?.toUpperCase() || 'RENTFLOW'}</h2>
+          <div style="font-size: 10px; color: #444; margin-top: 2px;">Smart CRM Receipt Slip</div>
+        </div>
+        <div class="divider"></div>
+        <div class="row"><span class="bold">Receipt No:</span> <span>${rental.rentalNumber}</span></div>
+        <div class="row"><span>Date:</span> <span>${new Date(rental.createdAt).toLocaleDateString('en-IN')}</span></div>
+        <div class="divider"></div>
+        <div class="bold" style="margin-bottom: 2px;">Customer Details:</div>
+        <div>${customer?.name || '—'}</div>
+        <div>Ph: ${customer?.phone || '—'}</div>
+        <div class="divider"></div>
+        <div class="bold" style="margin-bottom: 2px;">Vehicle details:</div>
+        <div>${item?.name || '—'}</div>
+        <div>No: ${item?.registrationNumber && item.registrationNumber !== 'N/A' ? item.registrationNumber : '—'}</div>
+        <div class="row" style="margin-top: 4px;"><span>Period:</span> <span>${rental.totalDays} Days</span></div>
+        <div class="row"><span>Daily Rate:</span> <span>₹${rental.dailyRate}</span></div>
+        <div class="divider"></div>
+        <div class="row"><span>Deposit:</span> <span>₹${rental.depositAmount}</span></div>
+        <div class="row bold" style="font-size: 13px;"><span>Balance Due:</span> <span>₹${pending}</span></div>
+        <div class="divider"></div>
+        <div class="center" style="font-size: 10px; margin-top: 15px; line-height: 1.4;">
+          Thank you for renting with us!<br>
+          Have a safe trip!
+        </div>
+      `;
+    }
+
+    const invoiceStyles = `
+      .invoice-box { max-width: 800px; margin: auto; padding: 10px; font-size: 14px; line-height: 24px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; }
+      .invoice-header { display: flex; justify-content: space-between; border-bottom: 2px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 25px; }
+      .invoice-title { font-size: 26px; font-weight: 800; color: #2563eb; line-height: 1; letter-spacing: -0.5px; }
+      .grid-2 { display: grid; grid-template-cols: 1fr 1fr; gap: 40px; margin-bottom: 30px; }
+      .table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+      .table th { background: #f9fafb; font-weight: bold; padding: 10px 12px; border: 1px solid #e5e7eb; text-align: left; color: #374151; font-size: 12px; text-transform: uppercase; }
+      .table td { padding: 10px 12px; border: 1px solid #e5e7eb; color: #4b5563; }
+      .total-section { width: 300px; }
+      .total-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #f3f4f6; }
+      .total-bold { font-weight: bold; font-size: 16px; border-top: 2px solid #e5e7eb; padding-top: 10px; border-bottom: none; color: #111827; }
+      .footer { margin-top: 80px; display: flex; justify-content: space-between; }
+      .signature-line { border-top: 1px solid #9ca3af; width: 220px; text-align: center; margin-top: 40px; font-size: 12px; padding-top: 5px; color: #4b5563; }
+    `;
+
+    const slipStyles = `
+      body { width: 280px; margin: 0 auto; font-size: 12px; font-family: 'Courier New', Courier, monospace; color: #000; padding: 10px; }
+      .header { text-align: center; margin-bottom: 15px; }
+      .divider { border-top: 1px dashed #000; margin: 8px 0; }
+      .row { display: flex; justify-content: space-between; margin: 2px 0; }
+      .bold { font-weight: bold; }
+      .center { text-align: center; }
+    `;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${rental.rentalNumber} - ${type === 'invoice' ? 'Invoice' : 'Slip'}</title>
+          <style>
+            ${type === 'invoice' ? invoiceStyles : slipStyles}
+          </style>
+        </head>
+        <body>
+          ${contentHtml}
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(() => { window.close(); }, 500);
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  // Helper for rendering document slots
+  const renderDocSlot = (label, fileKey, urlVal, fileObj) => {
+    return (
+      <div>
+        <label className="label">{label}</label>
+        <div className="relative border-2 border-dashed border-gray-250 rounded-2xl p-4 hover:border-brand-400 transition-colors cursor-pointer flex flex-col items-center justify-center text-center min-h-[82px] bg-gray-50/50 shadow-inner">
+          <input 
+            type="file" 
+            accept="image/*,application/pdf" 
+            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" 
+            onChange={e => handleFileChange(fileKey, e.target.files[0])} 
+          />
+          
+          {fileObj ? (
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[9px] text-brand-700 bg-brand-50 border border-brand-100 px-2 py-0.5 rounded font-black uppercase tracking-wider">New File Chosen</span>
+              <span className="text-xs text-gray-700 font-extrabold max-w-[150px] truncate">{fileObj.name}</span>
+            </div>
+          ) : urlVal ? (
+            <div className="flex flex-col items-center gap-1.5 z-20 relative">
+              <span className="text-[9px] text-green-700 bg-green-50 border border-green-150 px-2 py-0.5 rounded font-black uppercase tracking-wider">✓ Added Before</span>
+              <a 
+                href={urlVal} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="text-xs text-brand-650 font-extrabold hover:underline truncate max-w-[150px]"
+                onClick={e => e.stopPropagation()} 
+              >
+                View Document
+              </a>
+            </div>
+          ) : (
+            <>
+              <Upload size={16} className="text-gray-400 mb-1" />
+              <span className="text-[10px] text-gray-500 font-extrabold">Choose File</span>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render Confirmation Receipt View
+  if (createdRentalData) {
+    const rental = createdRentalData;
+    const customer = rental.customerId;
+    const item = rental.inventoryId;
+    const waLink = getWhatsAppLink(customer?.phone || '', 'confirmation', {
+      customerName: customer?.name,
+      vehicleName: item?.name,
+      regNo: item?.registrationNumber,
+      startDate: new Date(rental.startDate).toLocaleDateString('en-IN'),
+      returnDate: new Date(rental.expectedReturnDate).toLocaleDateString('en-IN'),
+      amount: rental.totalAmount,
+      deposit: rental.depositAmount,
+      rentalNumber: rental.rentalNumber
+    }, language);
+
+    return (
+      <Modal title="Rental Confirmed!" onClose={() => { onSuccess?.(); onClose(); }}>
+        <div className="space-y-6 text-center py-4 flex flex-col items-center">
+          <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center border border-green-150 shadow-sm animate-bounce">
+            <Check size={36} strokeWidth={3} />
+          </div>
+          
+          <div>
+            <h2 className="text-xl font-black text-gray-950">Booking Confirmed!</h2>
+            <p className="text-xs text-gray-400 font-mono font-bold mt-1">Rental No: {rental.rentalNumber}</p>
+          </div>
+
+          <div className="w-full bg-gray-50 border border-gray-150 rounded-2xl p-4 text-sm font-semibold text-left space-y-2 max-w-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Customer:</span>
+              <span className="text-gray-900">{customer?.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Vehicle:</span>
+              <span className="text-gray-900">{item?.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Amount:</span>
+              <span className="text-gray-955 font-extrabold">{fmt(rental.totalAmount)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Security Deposit:</span>
+              <span className="text-gray-900">{fmt(rental.depositAmount)}</span>
+            </div>
+          </div>
+
+          {/* Receipt Options Panel */}
+          <div className="w-full space-y-3 max-w-sm">
+            <p className="font-extrabold text-gray-800 text-xs uppercase tracking-wider text-left pl-1">Print & Share Receipts</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button onClick={() => handlePrint('invoice')} variant="outline" className="min-h-[44px]">
+                <Printer size={14} className="mr-1" />
+                Print A4
+              </Button>
+              <Button onClick={() => handlePrint('slip')} variant="outline" className="min-h-[44px]">
+                <Printer size={14} className="mr-1" />
+                Print Slip
+              </Button>
+            </div>
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noreferrer"
+              className="w-full h-11 bg-green-500 hover:bg-green-600 text-white rounded-xl shadow-sm text-sm font-bold transition-all duration-150 active:scale-95 flex items-center justify-center gap-2 border border-green-600/10"
+            >
+              <MessageCircle size={18} />
+              Share Receipt on WhatsApp
+            </a>
+          </div>
+
+          <div className="pt-4 border-t border-gray-150 w-full">
+            <Button className="w-full min-h-[44px]" onClick={() => { onSuccess?.(); onClose(); }}>
+              Done / Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal title={t('createRental')} onClose={onClose} size="lg">
@@ -210,22 +539,8 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
             </div>
             <Input label={t('aadhaarNumber')} placeholder="XXXX-XXXX-XXXX" value={customerDetails.aadhaarNumber} onChange={e => setCust('aadhaarNumber', e.target.value)} />
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">{t('aadhaarCard')} ({t('front')})</label>
-                <div className="relative border-2 border-dashed border-gray-200 rounded-xl p-3 hover:border-brand-400 transition-colors cursor-pointer flex flex-col items-center text-center">
-                  <input type="file" accept="image/*,application/pdf" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={e => handleFileChange('aadhaar_front', e.target.files[0])} />
-                  <Upload size={16} className="text-gray-400 mb-1" />
-                  <span className="text-[10px] text-gray-500 font-bold max-w-full truncate">{files.aadhaar_front ? files.aadhaar_front.name : 'Choose File'}</span>
-                </div>
-              </div>
-              <div>
-                <label className="label">{t('aadhaarCard')} ({t('backSide')})</label>
-                <div className="relative border-2 border-dashed border-gray-200 rounded-xl p-3 hover:border-brand-400 transition-colors cursor-pointer flex flex-col items-center text-center">
-                  <input type="file" accept="image/*,application/pdf" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={e => handleFileChange('aadhaar_back', e.target.files[0])} />
-                  <Upload size={16} className="text-gray-400 mb-1" />
-                  <span className="text-[10px] text-gray-500 font-bold max-w-full truncate">{files.aadhaar_back ? files.aadhaar_back.name : 'Choose File'}</span>
-                </div>
-              </div>
+              {renderDocSlot(`${t('aadhaarCard')} (${t('front')})`, 'aadhaar_front', customerDetails.aadhaarFrontUrl, files.aadhaar_front)}
+              {renderDocSlot(`${t('aadhaarCard')} (${t('backSide')})`, 'aadhaar_back', customerDetails.aadhaarBackUrl, files.aadhaar_back)}
             </div>
           </div>
 
@@ -237,22 +552,8 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
             </div>
             <Input label={t('dlNumber')} placeholder="AP31201900012" value={customerDetails.dlNumber} onChange={e => setCust('dlNumber', e.target.value)} />
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">{t('drivingLicense')} ({t('front')})</label>
-                <div className="relative border-2 border-dashed border-gray-200 rounded-xl p-3 hover:border-brand-400 transition-colors cursor-pointer flex flex-col items-center text-center">
-                  <input type="file" accept="image/*,application/pdf" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={e => handleFileChange('dl_front', e.target.files[0])} />
-                  <Upload size={16} className="text-gray-400 mb-1" />
-                  <span className="text-[10px] text-gray-500 font-bold max-w-full truncate">{files.dl_front ? files.dl_front.name : 'Choose File'}</span>
-                </div>
-              </div>
-              <div>
-                <label className="label">{t('drivingLicense')} ({t('backSide')})</label>
-                <div className="relative border-2 border-dashed border-gray-200 rounded-xl p-3 hover:border-brand-400 transition-colors cursor-pointer flex flex-col items-center text-center">
-                  <input type="file" accept="image/*,application/pdf" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={e => handleFileChange('dl_back', e.target.files[0])} />
-                  <Upload size={16} className="text-gray-400 mb-1" />
-                  <span className="text-[10px] text-gray-500 font-bold max-w-full truncate">{files.dl_back ? files.dl_back.name : 'Choose File'}</span>
-                </div>
-              </div>
+              {renderDocSlot(`${t('drivingLicense')} (${t('front')})`, 'dl_front', customerDetails.dlFrontUrl, files.dl_front)}
+              {renderDocSlot(`${t('drivingLicense')} (${t('backSide')})`, 'dl_back', customerDetails.dlBackUrl, files.dl_back)}
             </div>
           </div>
 
@@ -277,22 +578,8 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
               <div className="space-y-3.5 border-t border-gray-100 pt-3 animate-fade-in">
                 <Input label="Passport Number" placeholder="Z1234567" value={customerDetails.passportNumber} onChange={e => setCust('passportNumber', e.target.value)} />
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="label">Passport Front</label>
-                    <div className="relative border-2 border-dashed border-gray-200 rounded-xl p-3 hover:border-brand-400 transition-colors cursor-pointer flex flex-col items-center text-center">
-                      <input type="file" accept="image/*,application/pdf" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={e => handleFileChange('passport_front', e.target.files[0])} />
-                      <Upload size={16} className="text-gray-400 mb-1" />
-                      <span className="text-[10px] text-gray-500 font-bold max-w-full truncate">{files.passport_front ? files.passport_front.name : 'Choose File'}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="label">Passport Back</label>
-                    <div className="relative border-2 border-dashed border-gray-200 rounded-xl p-3 hover:border-brand-400 transition-colors cursor-pointer flex flex-col items-center text-center">
-                      <input type="file" accept="image/*,application/pdf" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={e => handleFileChange('passport_back', e.target.files[0])} />
-                      <Upload size={16} className="text-gray-400 mb-1" />
-                      <span className="text-[10px] text-gray-500 font-bold max-w-full truncate">{files.passport_back ? files.passport_back.name : 'Choose File'}</span>
-                    </div>
-                  </div>
+                  {renderDocSlot("Passport Front", "passport_front", customerDetails.passportUrl, files.passport_front)}
+                  {renderDocSlot("Passport Back", "passport_back", customerDetails.passportBackUrl, files.passport_back)}
                 </div>
               </div>
             )}
@@ -302,22 +589,8 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
               <div className="space-y-3.5 border-t border-gray-100 pt-3 animate-fade-in">
                 <Input label="Voter ID Card Number" placeholder="ABC1234567" value={customerDetails.voterIdNumber} onChange={e => setCust('voterIdNumber', e.target.value)} />
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="label">Voter ID Front</label>
-                    <div className="relative border-2 border-dashed border-gray-200 rounded-xl p-3 hover:border-brand-400 transition-colors cursor-pointer flex flex-col items-center text-center">
-                      <input type="file" accept="image/*,application/pdf" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={e => handleFileChange('voterid_front', e.target.files[0])} />
-                      <Upload size={16} className="text-gray-400 mb-1" />
-                      <span className="text-[10px] text-gray-500 font-bold max-w-full truncate">{files.voterid_front ? files.voterid_front.name : 'Choose File'}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="label">Voter ID Back</label>
-                    <div className="relative border-2 border-dashed border-gray-200 rounded-xl p-3 hover:border-brand-400 transition-colors cursor-pointer flex flex-col items-center text-center">
-                      <input type="file" accept="image/*,application/pdf" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={e => handleFileChange('voterid_back', e.target.files[0])} />
-                      <Upload size={16} className="text-gray-400 mb-1" />
-                      <span className="text-[10px] text-gray-500 font-bold max-w-full truncate">{files.voterid_back ? files.voterid_back.name : 'Choose File'}</span>
-                    </div>
-                  </div>
+                  {renderDocSlot("Voter ID Front", "voterid_front", customerDetails.voterIdUrl, files.voterid_front)}
+                  {renderDocSlot("Voter ID Back", "voterid_back", customerDetails.voterIdBackUrl, files.voterid_back)}
                 </div>
               </div>
             )}

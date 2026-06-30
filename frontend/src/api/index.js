@@ -26,6 +26,7 @@ export const customersAPI = {
   toggleBlacklist: (id, data) => api.post(`/customers/${id}/blacklist`, data),
   uploadId: (id, formData) => api.post(`/customers/${id}/upload-id`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
   }),
   getStats: () => api.get('/customers/stats'),
 };
@@ -39,6 +40,7 @@ export const inventoryAPI = {
   delete: (id) => api.delete(`/inventory/${id}`),
   uploadPhoto: (id, formData) => api.post(`/inventory/${id}/photo`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
   }),
   addMaintenance: (id, data) => api.post(`/inventory/${id}/maintenance`, data),
   getStats: () => api.get('/inventory/stats'),

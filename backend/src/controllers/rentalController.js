@@ -170,6 +170,8 @@ exports.createRental = catchAsync(async (req, res, next) => {
       if (city && customer.city !== city) { customer.city = city; updated = true; }
       if (aadhaarNumber && customer.aadhaarNumber !== aadhaarNumber) { customer.aadhaarNumber = aadhaarNumber; updated = true; }
       if (dlNumber && customer.dlNumber !== dlNumber) { customer.dlNumber = dlNumber; updated = true; }
+      if (customerDetails.passportNumber && customer.passportNumber !== customerDetails.passportNumber) { customer.passportNumber = customerDetails.passportNumber; updated = true; }
+      if (customerDetails.voterIdNumber && customer.voterIdNumber !== customerDetails.voterIdNumber) { customer.voterIdNumber = customerDetails.voterIdNumber; updated = true; }
       if (updated) await customer.save({ validateBeforeSave: false });
     }
   }
@@ -228,13 +230,13 @@ exports.createRental = catchAsync(async (req, res, next) => {
     lastRentalDate: new Date(),
   });
 
-  // Queue confirmation notification
-  await addToAlertQueue({
+  // Queue confirmation notification (non-blocking)
+  addToAlertQueue({
     type: 'rental_created',
     rentalId: rental._id,
     agencyId: req.agencyId,
     customerId: resolvedCustomerId,
-  });
+  }).catch(err => console.error('Alert queue error (created):', err));
 
   const populated = await rental.populate([
     { path: 'customerId', select: 'name phone email' },
@@ -343,13 +345,13 @@ exports.processReturn = catchAsync(async (req, res, next) => {
     $inc: { totalAmountPaid: finalAmount },
   });
 
-  // Queue return confirmation
-  await addToAlertQueue({
+  // Queue return confirmation (non-blocking)
+  addToAlertQueue({
     type: 'rental_returned',
     rentalId: rental._id,
     agencyId: req.agencyId,
     customerId: rental.customerId,
-  });
+  }).catch(err => console.error('Alert queue error (returned):', err));
 
   res.json({ success: true, data: rental, message: 'Return processed successfully' });
 });
