@@ -1,0 +1,33 @@
+name: Deploy RentFlow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+
+          script: |
+            cd ~/rental-flow
+
+            git pull origin main
+
+            cd frontend
+            npm install
+            npm run build
+
+            cd ../backend
+            npm install
+
+            pm2 restart rentflow-backend
