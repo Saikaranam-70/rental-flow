@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #F7F8FA;
+    color: #111318;
+    -webkit-font-smoothing: antialiased;
+  }
+  input, select, textarea {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl border border-gray-200 shadow-card;
+  }
+  .btn-primary {
+    @apply bg-brand-500 hover:bg-brand-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors duration-150 flex items-center gap-2;
+  }
+  .btn-secondary {
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg transition-colors duration-150 flex items-center gap-2;
+  }
+  .btn-danger {
+    @apply bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors duration-150 flex items-center gap-2;
+  }
+  .input-base {
+    @apply w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all;
+  }
+  .label {
+    @apply block text-sm font-semibold text-gray-700 mb-1.5;
+  }
+  .badge-active   { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700; }
+  .badge-overdue  { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700; }
+  .badge-returned { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700; }
+  .badge-available   { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700; }
+  .badge-rented      { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700; }
+  .badge-maintenance { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700; }
+  .badge-retired     { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600; }
+  .sidebar-item {
+    @apply w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer;
+  }
+  .sidebar-item-active {
+    @apply bg-[#1E2128] text-white;
+  }
+  .sidebar-item-inactive {
+    @apply text-gray-400 hover:bg-[#1A1D24] hover:text-gray-200;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+/* React Select custom styles */
+.rs__control {
+  border-color: #E5E7EB !important;
+  border-radius: 8px !important;
+  min-height: 38px !important;
+  font-size: 14px !important;
+}
+.rs__control:hover { border-color: #D1D5DB !important; }
+.rs__control--is-focused {
+  border-color: #F59E0B !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
+}
+.rs__option--is-focused { background: #FFF7ED !important; }
+.rs__option--is-selected { background: #F59E0B !important; }
+
+/* Datepicker */
+.react-datepicker-wrapper { width: 100%; }
+.react-datepicker__input-container input { @apply input-base; }
+
+/* Skeleton animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+/* Pulse dot */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+.pulse-dot { animation: pulseDot 1.5s ease-in-out infinite; }
+
+/* Print */
+@media print {
+  .no-print { display: none !important; }
+  .sidebar { display: none !important; }
+  main { margin-left: 0 !important; }
+}
