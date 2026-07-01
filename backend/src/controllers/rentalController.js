@@ -186,14 +186,29 @@ exports.createRental = catchAsync(async (req, res, next) => {
   const resolvedCustomerId = customer._id;
 
   // Validate inventory
-  const inventory = await Inventory.findOne({ _id: inventoryId, agencyId: req.agencyId });
+  let inventory;
+  if (inventoryId === 'new' && req.body.vehicleDetails) {
+    const { name, dailyRate, depositAmount } = req.body.vehicleDetails;
+    if (!name || !dailyRate || !depositAmount) {
+      return next(new AppError('Vehicle name, daily rate, and deposit amount are required', 400));
+    }
+    inventory = await Inventory.create({
+      ...req.body.vehicleDetails,
+      agencyId: req.agencyId,
+      status: 'available',
+    });
+  } else {
+    inventory = await Inventory.findOne({ _id: inventoryId, agencyId: req.agencyId });
+  }
+
   if (!inventory) return next(new AppError('Vehicle/item not found', 404));
+  
   if (inventory.status !== 'available') {
     return next(new AppError(`This item is currently ${inventory.status}`, 400));
   }
 
   // Check insurance expiry
-  if (inventory.isInsuranceExpired) {
+  if (inventoryId !== 'new' && inventory.isInsuranceExpired) {
     return next(new AppError('Cannot rent — insurance is expired for this vehicle', 400));
   }
 
@@ -205,7 +220,7 @@ exports.createRental = catchAsync(async (req, res, next) => {
   const rental = await Rental.create({
     agencyId: req.agencyId,
     customerId: resolvedCustomerId,
-    inventoryId,
+    inventoryId: inventory._id,
     startDate: new Date(startDate),
     expectedReturnDate: new Date(expectedReturnDate),
     totalDays: days,
@@ -222,7 +237,7 @@ exports.createRental = catchAsync(async (req, res, next) => {
   });
 
   // Update inventory status
-  await Inventory.findByIdAndUpdate(inventoryId, { status: 'rented' });
+  await Inventory.findByIdAndUpdate(inventory._id, { status: 'rented' });
 
   // Update customer stats
   await Customer.findByIdAndUpdate(resolvedCustomerId, {

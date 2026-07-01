@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../../store/authStore';
@@ -9,7 +9,7 @@ import { LanguageSelector } from '../ui';
 import {
   LayoutDashboard, Users, Package, FileText,
   CreditCard, BarChart2, Settings, LogOut,
-  ChevronLeft, Menu, Bell, AlertCircle, Bike,
+  ChevronLeft, Menu, Bell, AlertCircle, Bike, Download,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -28,6 +28,27 @@ export default function Layout() {
   const { t } = useLangStore();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('User accepted PWA installation');
+    }
+    setDeferredPrompt(null);
+  };
 
   const { data: dashData } = useQuery('dashboard-stats', () => rentalsAPI.getDashboard(), {
     refetchInterval: 60000,
@@ -89,6 +110,22 @@ export default function Layout() {
           </NavLink>
         ))}
       </nav>
+
+      {/* PWA Install Button */}
+      {deferredPrompt && (!collapsed || mobile) && (
+        <div className="mx-3 mb-3 p-3 bg-[#1e2128] border border-gray-800 rounded-xl space-y-1.5 shadow-sm">
+          <div className="text-white text-xs font-black flex items-center gap-1.5">
+            <Download size={14} className="text-brand-400 animate-bounce" />
+            Install RentFlow App
+          </div>
+          <button
+            onClick={handleInstallClick}
+            className="w-full py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-extrabold shadow-sm transition-all"
+          >
+            Install
+          </button>
+        </div>
+      )}
 
       {/* Plan badge */}
       {(!collapsed || mobile) && (

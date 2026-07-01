@@ -1,0 +1,18 @@
+{
+  "short_name": "RentFlow",
+  "name": "RentFlow CRM",
+  "description": "Smart CRM for rental agencies",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

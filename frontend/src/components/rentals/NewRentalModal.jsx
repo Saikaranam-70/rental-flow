@@ -40,6 +40,17 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
   const [createdRentalData, setCreatedRentalData] = useState(null);
   const [blacklistWarning, setBlacklistWarning] = useState(null);
 
+  // New vehicle modes: 'select' | 'add'
+  const [vehicleMode, setVehicleMode] = useState(preselectedVehicleId ? 'select' : 'select');
+  const [newVehicle, setNewVehicle] = useState({
+    name: '', brand: '', model: '', year: '', color: '',
+    category: 'bike', fuelType: 'na', engineCC: '',
+    registrationNumber: '', dailyRate: '', depositAmount: '',
+    lateFeePerDay: '', insuranceExpiryDate: '', pucExpiryDate: '',
+    description: ''
+  });
+  const [vehiclePhoto, setVehiclePhoto] = useState(null);
+
   const { data: invData } = useQuery('inventory-available', () =>
     inventoryAPI.getAll({ status: 'available', limit: 100 })
   );
@@ -63,7 +74,13 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
     ? Math.max(0, Math.ceil((new Date(form.expectedReturnDate) - new Date(form.startDate)) / (1000 * 60 * 60 * 24)))
     : 0;
 
-  const baseAmount = selectedItem ? days * selectedItem.dailyRate : 0;
+  // Resolve calculations based on mode
+  const isVehicleAddMode = vehicleMode === 'add';
+  const resolvedVehicleName = isVehicleAddMode ? newVehicle.name : (selectedItem?.name || '');
+  const resolvedDailyRate = isVehicleAddMode ? (parseFloat(newVehicle.dailyRate) || 0) : (selectedItem?.dailyRate || 0);
+  const resolvedDepositAmount = isVehicleAddMode ? (parseFloat(newVehicle.depositAmount) || 0) : (selectedItem?.depositAmount || 0);
+
+  const baseAmount = days * resolvedDailyRate;
   const totalAmount = Math.max(0, baseAmount - (parseFloat(form.discountAmount) || 0));
 
   const handleClose = () => {
@@ -76,6 +93,7 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setCust = (k, v) => setCustomerDetails(c => ({ ...c, [k]: v }));
+  const setNewVeh = (k, v) => setNewVehicle(nv => ({ ...nv, [k]: v }));
 
   const handlePhoneChange = async (phoneVal) => {
     setCust('phone', phoneVal);
@@ -135,7 +153,16 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
     if (!customerDetails.name || !customerDetails.phone) {
       toast.error('Customer name and phone number are required'); return;
     }
-    if (!form.inventoryId || !form.startDate || !form.expectedReturnDate) {
+    if (isVehicleAddMode) {
+      if (!newVehicle.name || !newVehicle.dailyRate || !newVehicle.depositAmount) {
+        toast.error('Please enter name, daily rate, and deposit for the new vehicle'); return;
+      }
+    } else {
+      if (!form.inventoryId) {
+        toast.error('Please select a vehicle'); return;
+      }
+    }
+    if (!form.startDate || !form.expectedReturnDate) {
       toast.error('Please fill all required fields'); return;
     }
     if (days <= 0) { toast.error('Return date must be after start date'); return; }
@@ -144,6 +171,8 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
     try {
       const payload = {
         ...form,
+        inventoryId: isVehicleAddMode ? 'new' : form.inventoryId,
+        vehicleDetails: isVehicleAddMode ? newVehicle : undefined,
         customerId: 'new',
         customerDetails: {
           ...customerDetails,
@@ -190,6 +219,18 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
             await customersAPI.uploadId(targetCustomerId, formData);
           }
           toast.success('Documents uploaded successfully!', { id: 'doc-upload' });
+        }
+      }
+
+      // Upload vehicle photo if in vehicle add mode and photo is selected
+      if (isVehicleAddMode && vehiclePhoto) {
+        const createdVehicleId = rental.inventoryId?._id || rental.inventoryId;
+        if (createdVehicleId) {
+          toast.loading('Uploading vehicle photo...', { id: 'vehicle-photo' });
+          const photoData = new FormData();
+          photoData.append('photo', vehiclePhoto);
+          await inventoryAPI.uploadPhoto(createdVehicleId, photoData);
+          toast.success('Vehicle photo uploaded successfully!', { id: 'vehicle-photo' });
         }
       }
 
@@ -607,29 +648,134 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
           </div>
         </div>
 
-        {/* Vehicle Selection */}
-        <div>
-          <label className="label">{t('fleet')} <span className="text-red-500">*</span></label>
-          <div className="relative mb-2">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
-              <Search size={16} />
-            </span>
-            <input 
-              type="text" 
-              placeholder={t('searchVehiclePlaceholder')} 
-              className="input-base pl-10 border-2 border-gray-200 focus:border-brand-500 min-h-[44px] text-gray-900 font-bold" 
-              value={vehicleSearch} 
-              onChange={e => setVehicleSearch(e.target.value)} 
-            />
+        {/* Vehicle Selection Block */}
+        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4.5 space-y-4 shadow-sm">
+          <p className="font-extrabold text-gray-800 text-xs uppercase tracking-wider flex items-center gap-1.5 border-b border-gray-200 pb-2">
+            <Shield size={14} className="text-brand-650" />
+            Vehicle Details
+          </p>
+          
+          {/* Mode Switcher */}
+          <div className="flex gap-2 mb-1 bg-gray-200/50 p-1 rounded-xl">
+            <button
+              type="button"
+              className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${vehicleMode === 'select' ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-550 hover:text-gray-900'}`}
+              onClick={() => setVehicleMode('select')}
+            >
+              Select Existing Available
+            </button>
+            <button
+              type="button"
+              className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${vehicleMode === 'add' ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-555 hover:text-gray-900'}`}
+              onClick={() => setVehicleMode('add')}
+            >
+              ＋ Add New Vehicle
+            </button>
           </div>
-          <select className="input-base bg-white border-2 border-gray-200 focus:border-brand-500 min-h-[44px] text-gray-950 font-bold" value={form.inventoryId} onChange={e => set('inventoryId', e.target.value)}>
-            <option value="">{t('selectAvailableItem')}</option>
-            {filteredVehicles.map(i => (
-              <option key={i._id} value={i._id}>
-                {i.name} {i.registrationNumber ? `(${i.registrationNumber})` : ''} — {fmt(i.dailyRate)}/{t('days').slice(0,-3)}
-              </option>
-            ))}
-          </select>
+
+          {vehicleMode === 'select' ? (
+            <div className="space-y-3">
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                  <Search size={16} />
+                </span>
+                <input 
+                  type="text" 
+                  placeholder={t('searchVehiclePlaceholder')} 
+                  className="input-base pl-10 border-2 border-gray-200 focus:border-brand-500 min-h-[44px] text-gray-900 font-bold" 
+                  value={vehicleSearch} 
+                  onChange={e => setVehicleSearch(e.target.value)} 
+                />
+              </div>
+              <select className="input-base bg-white border-2 border-gray-200 focus:border-brand-500 min-h-[44px] text-gray-950 font-bold" value={form.inventoryId} onChange={e => set('inventoryId', e.target.value)}>
+                <option value="">{t('selectAvailableItem')}</option>
+                {filteredVehicles.map(i => (
+                  <option key={i._id} value={i._id}>
+                    {i.name} {i.registrationNumber ? `(${i.registrationNumber})` : ''} — {fmt(i.dailyRate)}/{t('days').slice(0,-3)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3.5 animate-fade-in">
+              <div className="col-span-2">
+                <Input label="Vehicle Name (e.g. Hero Splendor Plus)" required placeholder="Hero Splendor Plus" value={newVehicle.name} onChange={e => setNewVeh('name', e.target.value)} />
+              </div>
+              <div>
+                <Input label="Brand" placeholder="Hero" value={newVehicle.brand} onChange={e => setNewVeh('brand', e.target.value)} />
+              </div>
+              <div>
+                <Input label="Model" placeholder="Splendor +" value={newVehicle.model} onChange={e => setNewVeh('model', e.target.value)} />
+              </div>
+              <div>
+                <Input label="Manufacture Year" type="number" placeholder="2024" value={newVehicle.year} onChange={e => setNewVeh('year', e.target.value)} />
+              </div>
+              <div>
+                <Input label="Color" placeholder="Black" value={newVehicle.color} onChange={e => setNewVeh('color', e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Category *</label>
+                <select className="input-base bg-white border-2 border-gray-200 focus:border-brand-500 min-h-[44px] text-gray-950 font-bold" value={newVehicle.category} onChange={e => setNewVeh('category', e.target.value)}>
+                  <option value="bike">Bike</option>
+                  <option value="scooter">Scooter</option>
+                  <option value="car">Car</option>
+                  <option value="auto">Auto</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Fuel Type</label>
+                <select className="input-base bg-white border-2 border-gray-200 focus:border-brand-500 min-h-[44px] text-gray-950 font-bold" value={newVehicle.fuelType} onChange={e => setNewVeh('fuelType', e.target.value)}>
+                  <option value="petrol">PETROL</option>
+                  <option value="diesel">DIESEL</option>
+                  <option value="electric">ELECTRIC</option>
+                  <option value="cng">CNG</option>
+                  <option value="na">N/A</option>
+                </select>
+              </div>
+              <div>
+                <Input label="Engine CC" type="number" placeholder="110" value={newVehicle.engineCC} onChange={e => setNewVeh('engineCC', e.target.value)} />
+              </div>
+              <div>
+                <Input label="Registration Number" placeholder="AP31XY1234" value={newVehicle.registrationNumber} onChange={e => setNewVeh('registrationNumber', e.target.value)} />
+              </div>
+              <div>
+                <Input label="Daily Rate (₹) *" required type="number" placeholder="400" value={newVehicle.dailyRate} onChange={e => setNewVeh('dailyRate', e.target.value)} />
+              </div>
+              <div>
+                <Input label="Security Deposit (₹) *" required type="number" placeholder="2000" value={newVehicle.depositAmount} onChange={e => setNewVeh('depositAmount', e.target.value)} />
+              </div>
+              <div>
+                <Input label="Late Fee / Day (₹)" type="number" placeholder="100" value={newVehicle.lateFeePerDay} onChange={e => setNewVeh('lateFeePerDay', e.target.value)} />
+              </div>
+              <div>
+                <Input label="Insurance Expiry" type="date" value={newVehicle.insuranceExpiryDate} onChange={e => setNewVeh('insuranceExpiryDate', e.target.value)} />
+              </div>
+              <div>
+                <Input label="PUC Expiry" type="date" value={newVehicle.pucExpiryDate} onChange={e => setNewVeh('pucExpiryDate', e.target.value)} />
+              </div>
+              <div className="col-span-2">
+                <Textarea label="Description / Special Conditions" rows={2} placeholder="Scratches on left shield, double helmet included..." value={newVehicle.description} onChange={e => setNewVeh('description', e.target.value)} />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Vehicle Photo</label>
+                <div className="relative border-2 border-dashed border-gray-250 rounded-2xl p-4 hover:border-brand-400 transition-colors cursor-pointer flex flex-col items-center justify-center text-center min-h-[82px] bg-gray-50/50 shadow-inner">
+                  <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" onChange={e => setVehiclePhoto(e.target.files[0])} />
+                  {vehiclePhoto ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-[9px] text-brand-700 bg-brand-50 border border-brand-100 px-2 py-0.5 rounded font-black uppercase tracking-wider">Photo Selected</span>
+                      <span className="text-xs text-gray-700 font-extrabold max-w-[150px] truncate">{vehiclePhoto.name}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload size={16} className="text-gray-400 mb-1" />
+                      <span className="text-[10px] text-gray-500 font-extrabold">Choose Vehicle Photo</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Rental Dates */}
@@ -653,17 +799,17 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
         </div>
 
         {/* Pricing Summary */}
-        {selectedItem && days > 0 && (
+        {resolvedVehicleName && days > 0 && (
           <div className="bg-green-50 border border-green-200/60 rounded-xl p-4.5 space-y-2.5 animate-fade-in shadow-sm font-bold text-sm">
             <p className="font-extrabold text-green-800 flex items-center gap-1.5">
               <ClipboardList size={16} />
               {t('rentalSummary')}
             </p>
             {[
-              [t('fleet'), selectedItem.name],
-              [t('dailyRate'), fmt(selectedItem.dailyRate)],
+              [t('fleet'), resolvedVehicleName],
+              [t('dailyRate'), fmt(resolvedDailyRate)],
               [t('duration'), `${days} ${t('days')}`],
-              [t('depositAmount'), fmt(selectedItem.depositAmount)],
+              [t('depositAmount'), fmt(resolvedDepositAmount)],
               ['Base Amount', fmt(baseAmount)],
               form.discountAmount > 0 ? [t('discount'), `− ${fmt(form.discountAmount)}`] : null,
             ].filter(Boolean).map(([k, v]) => (
