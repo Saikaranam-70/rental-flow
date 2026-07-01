@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import { inventoryAPI } from '../api';
 import { fmt, fmtDate, categoryIcon, categoryLabel, getErrorMessage } from '../utils/helpers';
-import { PageHeader, SearchInput, Card, Button, Badge, Modal, EmptyState, StatCard, DynamicIcon } from '../components/ui';
+import { PageHeader, SearchInput, Card, Button, Badge, Modal, EmptyState, StatCard, DynamicIcon, Input, Textarea } from '../components/ui';
 import NewRentalModal from '../components/rentals/NewRentalModal';
 import useLangStore from '../store/langStore';
 import { Plus, Wrench, Key, AlertTriangle, Info, Calendar } from 'lucide-react';
