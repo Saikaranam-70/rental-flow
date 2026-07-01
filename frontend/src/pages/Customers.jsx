@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { customersAPI } from '../api';
 import { getTierColor, getTierLabel, getErrorMessage, cn } from '../utils/helpers';
-import { PageHeader, SearchInput, Card, Button, Avatar, Badge, Modal, EmptyState, ConfirmDialog } from '../components/ui';
+import { PageHeader, SearchInput, Card, Button, Avatar, Badge, Modal, EmptyState, ConfirmDialog, Input } from '../components/ui';
 import useLangStore, { getWhatsAppLink } from '../store/langStore';
 import { MessageCircle, UserPlus, Slash, UserCheck, Phone, Mail, MapPin, ClipboardList, Info } from 'lucide-react';
 
