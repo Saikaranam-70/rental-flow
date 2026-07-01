@@ -4,6 +4,7 @@ const Inventory = require('../models/Inventory');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const { addToAlertQueue } = require('../jobs/queueManager');
+const logger = require('../config/logger');
 
 const calcDays = (start, end) => Math.max(1, Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)));
 
@@ -121,10 +122,15 @@ exports.getDashboardStats = catchAsync(async (req, res) => {
 
 // @GET /api/rentals/:id
 exports.getRental = catchAsync(async (req, res, next) => {
+  logger.debug('getRental called', { paramsId: req.params.id, agencyId: req.agencyId, userId: req.user?._id });
   const rental = await Rental.findOne({ _id: req.params.id, agencyId: req.agencyId })
     .populate('customerId')
     .populate('inventoryId');
-  if (!rental) return next(new AppError('Rental not found', 404));
+  if (!rental) {
+    logger.info('Rental not found for getRental', { paramsId: req.params.id, agencyId: req.agencyId });
+    return next(new AppError('Rental not found', 404));
+  }
+  logger.debug('Rental fetched', { rentalId: rental._id.toString(), agencyId: rental.agencyId.toString() });
   res.json({ success: true, data: rental });
 });
 

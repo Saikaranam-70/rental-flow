@@ -4,7 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { rentalsAPI } from '../api';
 import { fmt, fmtDate, overdueDays, categoryIcon, getErrorMessage } from '../utils/helpers';
-import { PageHeader, TabBar, SearchInput, Card, Button, Badge, Avatar, Modal, EmptyState, DynamicIcon, Input, Textarea } from '../components/ui';
+import { PageHeader, TabBar, SearchInput, Card, Button, Badge, Avatar, Modal, EmptyState, DynamicIcon, } from '../components/ui';
+import * as UI from '../components/ui';
 import NewRentalModal from '../components/rentals/NewRentalModal';
 import useLangStore, { getWhatsAppLink } from '../store/langStore';
 import useAuthStore from '../store/authStore';
@@ -248,7 +249,7 @@ export default function Rentals() {
       {/* Return Modal */}
       {returnModal && (
         <Modal title={t('processReturn')} onClose={() => setReturnModal(null)}>
-          <div className="space-y-4">
+            <div className="space-y-4">
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-semibold space-y-1 shadow-inner">
               <p className="font-extrabold text-gray-900 text-base">{returnModal.customerId?.name}</p>
               <p className="text-gray-500">{returnModal.inventoryId?.name}</p>
@@ -256,14 +257,14 @@ export default function Rentals() {
             </div>
 
             <div>
-              <Input label={t('actualReturnDate')} type="date" required value={returnForm.actualReturnDate} onChange={e => setReturnForm(f => ({ ...f, actualReturnDate: e.target.value }))} />
+              <UI.Input label={t('actualReturnDate')} type="date" required value={returnForm.actualReturnDate} onChange={e => setReturnForm(f => ({ ...f, actualReturnDate: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Input label={t('depositToReturn').replace(' (₹)', '')} type="number" value={returnForm.depositReturned} onChange={e => setReturnForm(f => ({ ...f, depositReturned: e.target.value }))} />
+                <UI.Input label={t('depositToReturn').replace(' (₹)', '')} type="number" value={returnForm.depositReturned} onChange={e => setReturnForm(f => ({ ...f, depositReturned: e.target.value }))} />
               </div>
               <div>
-                <Input label={t('penalty').replace(' (₹)', '')} type="number" value={returnForm.penaltyAmount} onChange={e => setReturnForm(f => ({ ...f, penaltyAmount: e.target.value }))} placeholder="0" />
+                <UI.Input label={t('penalty').replace(' (₹)', '')} type="number" value={returnForm.penaltyAmount} onChange={e => setReturnForm(f => ({ ...f, penaltyAmount: e.target.value }))} placeholder="0" />
               </div>
             </div>
             <div>
@@ -275,7 +276,7 @@ export default function Rentals() {
               </select>
             </div>
             <div>
-              <Textarea label={t('returnNotes')} rows={2} value={returnForm.returnNotes} onChange={e => setReturnForm(f => ({ ...f, returnNotes: e.target.value }))} placeholder="Condition, damages, etc." />
+              <UI.Textarea label={t('returnNotes')} rows={2} value={returnForm.returnNotes} onChange={e => setReturnForm(f => ({ ...f, returnNotes: e.target.value }))} placeholder="Condition, damages, etc." />
             </div>
             <div className="flex gap-3 pt-2">
               <Button variant="secondary" className="flex-1" onClick={() => setReturnModal(null)}>{t('cancel')}</Button>
@@ -294,10 +295,10 @@ export default function Rentals() {
               <p className="text-gray-500 mt-0.5">{t('currentDue')}: {fmtDate(extendModal.expectedReturnDate)}</p>
             </div>
             <div>
-              <Input label={t('newReturnDate')} type="date" required value={extendForm.newReturnDate} min={new Date().toISOString().split('T')[0]} onChange={e => setExtendForm(f => ({ ...f, newReturnDate: e.target.value }))} />
+              <UI.Input label={t('newReturnDate')} type="date" required value={extendForm.newReturnDate} min={new Date().toISOString().split('T')[0]} onChange={e => setExtendForm(f => ({ ...f, newReturnDate: e.target.value }))} />
             </div>
             <div>
-              <Input label={t('reasonForExtension')} value={extendForm.reason} onChange={e => setExtendForm(f => ({ ...f, reason: e.target.value }))} placeholder="Customer requested, out of town, etc." />
+              <UI.Input label={t('reasonForExtension')} value={extendForm.reason} onChange={e => setExtendForm(f => ({ ...f, reason: e.target.value }))} placeholder="Customer requested, out of town, etc." />
             </div>
             <div className="flex gap-3 pt-2">
               <Button variant="secondary" className="flex-1" onClick={() => setExtendModal(null)}>{t('cancel')}</Button>
