@@ -26,7 +26,7 @@ const RentalSchema = new mongoose.Schema({
   inventoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Inventory', required: true },
 
   // Rental number (auto-generated, human readable)
-  rentalNumber: { type: String, unique: true },
+  rentalNumber: { type: String },
 
   // Dates
   startDate: { type: Date, required: true },
@@ -101,7 +101,7 @@ RentalSchema.index({ agencyId: 1, customerId: 1 });
 RentalSchema.index({ agencyId: 1, inventoryId: 1 });
 RentalSchema.index({ agencyId: 1, expectedReturnDate: 1 });
 RentalSchema.index({ agencyId: 1, createdAt: -1 });
-RentalSchema.index({ rentalNumber: 1 });
+RentalSchema.index({ agencyId: 1, rentalNumber: 1 }, { unique: true });
 
 // Virtual: overdue days
 RentalSchema.virtual('overdueDays').get(function () {

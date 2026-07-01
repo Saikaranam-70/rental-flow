@@ -11,6 +11,14 @@ const connectDB = async () => {
 
     logger.info(`✅ MongoDB connected: ${conn.connection.host}`);
 
+    // Drop old global unique index on rentalNumber to support multi-tenancy
+    try {
+      await conn.connection.db.collection('rentals').dropIndex('rentalNumber_1');
+      logger.info('Dropped legacy global unique index: rentalNumber_1');
+    } catch (indexErr) {
+      // Index does not exist or has already been dropped
+    }
+
     mongoose.connection.on('error', (err) => {
       logger.error('MongoDB connection error:', err);
     });
