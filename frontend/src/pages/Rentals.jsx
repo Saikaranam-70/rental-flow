@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { rentalsAPI } from '../api';
 import { fmt, fmtDate, overdueDays, categoryIcon, getErrorMessage } from '../utils/helpers';
-import { PageHeader, TabBar, SearchInput, Card, Button, Badge, Avatar, Modal, EmptyState, DynamicIcon } from '../components/ui';
+import { PageHeader, TabBar, SearchInput, Card, Button, Badge, Avatar, Modal, EmptyState, DynamicIcon, Input, Textarea } from '../components/ui';
 import NewRentalModal from '../components/rentals/NewRentalModal';
 import useLangStore, { getWhatsAppLink } from '../store/langStore';
 import useAuthStore from '../store/authStore';

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import { rentalsAPI, customersAPI } from '../api';
-import { fmt, fmtDate, fmtDateTime, categoryIcon, getErrorMessage, overdueDays } from '../utils/helpers';
+import { fmt, fmtDate, fmtDateTime, categoryIcon, getErrorMessage, overdueDays, compressImage } from '../utils/helpers';
 import { Card, Button, Badge, Avatar, Modal, DynamicIcon, Input, Textarea } from '../components/ui';
 import useLangStore, { getWhatsAppLink } from '../store/langStore';
 import useAuthStore from '../store/authStore';
@@ -67,13 +67,14 @@ export function RentalDetail() {
 
   const handleDocUpload = async (idType, side, file) => {
     if (!file) return;
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('idType', idType);
-    formData.append('side', side || 'front');
-
     const toastId = toast.loading(`Uploading ${idType}...`);
     try {
+      const compressedFile = await compressImage(file);
+      const formData = new FormData();
+      formData.append('file', compressedFile, compressedFile.name || 'document.jpg');
+      formData.append('idType', idType);
+      formData.append('side', side || 'front');
+
       await customersAPI.uploadId(customer._id, formData);
       toast.success('Document uploaded successfully!', { id: toastId });
       qc.invalidateQueries(['rental', id]);

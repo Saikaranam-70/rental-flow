@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import { inventoryAPI } from '../api';
-import { fmt, fmtDate, categoryIcon, categoryLabel, getErrorMessage } from '../utils/helpers';
+import { fmt, fmtDate, categoryIcon, categoryLabel, getErrorMessage, compressImage } from '../utils/helpers';
 import { PageHeader, SearchInput, Card, Button, Badge, Modal, EmptyState, StatCard, DynamicIcon, Input, Textarea } from '../components/ui';
 import NewRentalModal from '../components/rentals/NewRentalModal';
 import useLangStore from '../store/langStore';
@@ -64,8 +64,9 @@ export default function Inventory() {
       const createdItem = res?.data?.data;
       if (photoFile && createdItem?._id) {
         toast.loading('Uploading vehicle photo...', { id: 'vehicle-photo-upload' });
+        const compressedFile = await compressImage(photoFile);
         const formData = new FormData();
-        formData.append('photo', photoFile);
+        formData.append('photo', compressedFile, compressedFile.name || 'photo.jpg');
         formData.append('isPrimary', 'true');
         await inventoryAPI.uploadPhoto(createdItem._id, formData);
         toast.success('Photo uploaded successfully!', { id: 'vehicle-photo-upload' });
