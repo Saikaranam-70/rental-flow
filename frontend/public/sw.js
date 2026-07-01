@@ -29,7 +29,8 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  if (e.request.url.includes('/api/')) {
+  // Only handle GET requests and skip API calls
+  if (e.request.method !== 'GET' || e.request.url.includes('/api/')) {
     return;
   }
   e.respondWith(
