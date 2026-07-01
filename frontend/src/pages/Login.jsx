@@ -6,9 +6,16 @@ import useAuthStore from '../store/authStore';
 import useLangStore from '../store/langStore';
 import { getErrorMessage } from '../utils/helpers';
 import { Button, Input, LanguageSelector } from '../components/ui';
-import { Bike, ShieldAlert } from 'lucide-react';
+import { Bike } from 'lucide-react';
+import useSEO from '../hooks/useSEO';
 
 export default function Login() {
+  useSEO({
+    title: 'Login to Manager Dashboard',
+    description: 'Log in to your RentFlow CRM business account. Securely manage your vehicle inventory, rental agreements, customer identity proofs, and transaction invoices.',
+    keywords: 'rentflow login, vehicle rental crm portal, bike rental app log in, manage rent accounts'
+  });
+
   const { login } = useAuthStore();
   const { t } = useLangStore();
   const navigate = useNavigate();
@@ -86,15 +93,6 @@ export default function Login() {
               {t('signIn')} →
             </Button>
           </form>
-
-          {/* Demo credentials */}
-          <div className="mt-6 p-4 bg-brand-50/50 border border-brand-200/60 rounded-xl text-center flex flex-col items-center">
-            <p className="font-extrabold text-brand-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldAlert size={14} className="text-brand-600" />
-              Demo Account
-            </p>
-            <p className="text-brand-700 text-xs font-bold mt-1">demo@rentflow.in / Demo@1234</p>
-          </div>
 
           <p className="text-center text-sm text-gray-500 mt-6 font-semibold">
             {t('donotHaveAccount')}{' '}

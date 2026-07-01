@@ -7,8 +7,15 @@ import useLangStore from '../store/langStore';
 import { getErrorMessage } from '../utils/helpers';
 import { Button, Input, Select, LanguageSelector } from '../components/ui';
 import { Bike } from 'lucide-react';
+import useSEO from '../hooks/useSEO';
 
 export default function Register() {
+  useSEO({
+    title: 'Start Free Trial — Create Business Account',
+    description: 'Get started with RentFlow CRM. Create your free business account to manage your car, bike, or equipment rental store. Experience automated alerts, invoices, and analytics.',
+    keywords: 'register rentflow, rental business sign up, free trial vehicle rental CRM, bike rental app registration'
+  });
+
   const { register: registerFn } = useAuthStore();
   const { t } = useLangStore();
   const navigate = useNavigate();

@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /forgot-password
+Disallow: /rentals/
+Disallow: /inventory/
+Disallow: /payments/
+Disallow: /reports/
+Disallow: /settings/
+Disallow: /api/
+
+Sitemap: https://rentalflow.oneserve.in/sitemap.xml
