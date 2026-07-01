@@ -16,6 +16,29 @@ export function RentalDetail() {
   const [showPayment, setShowPayment] = useState(false);
   const [payForm, setPayForm] = useState({ amount: '', method: 'cash', type: 'rental', reference: '', note: '' });
   const [saving, setSaving] = useState(false);
+  const [showReturn, setShowReturn] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [returnForm, setReturnForm] = useState({
+    actualReturnDate: new Date().toISOString().split('T')[0],
+    depositReturned: '',
+    penaltyAmount: '',
+    paymentMethod: 'cash',
+    returnNotes: ''
+  });
+
+  const handleReturn = async () => {
+    if (!returnForm.actualReturnDate) { toast.error('Return date required'); return; }
+    setProcessing(true);
+    try {
+      await rentalsAPI.processReturn(rental._id, returnForm);
+      toast.success('Return processed! ✅');
+      setShowReturn(false);
+      qc.invalidateQueries(['rental', id]);
+      qc.invalidateQueries('dashboard-stats');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally { setProcessing(false); }
+  };
   const { t, language } = useLangStore();
   const { user } = useAuthStore();
 
@@ -580,10 +603,29 @@ export function RentalDetail() {
             </div>
           </div>
           {isActive && (
-            <Button size="sm" className="mt-4.5 w-full shadow-sm" onClick={() => setShowPayment(true)}>
-              <Plus size={14} />
-              {t('recordPayment')}
-            </Button>
+            <div className="space-y-2.5 mt-4.5">
+              <Button size="sm" className="w-full shadow-sm" onClick={() => setShowPayment(true)}>
+                <Plus size={14} />
+                {t('recordPayment')}
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="w-full shadow-sm border-2" 
+                onClick={() => {
+                  setShowReturn(true);
+                  setReturnForm({
+                    actualReturnDate: new Date().toISOString().split('T')[0],
+                    depositReturned: rental.depositAmount,
+                    penaltyAmount: '',
+                    paymentMethod: 'cash',
+                    returnNotes: ''
+                  });
+                }}
+              >
+                {t('processReturn')}
+              </Button>
+            </div>
           )}
         </Card>
       </div>
@@ -660,6 +702,46 @@ export function RentalDetail() {
             <div className="flex gap-3 pt-2">
               <Button variant="secondary" className="flex-1" onClick={() => setShowPayment(false)}>{t('cancel')}</Button>
               <Button className="flex-1" loading={saving} onClick={addPayment}>{t('recordPayment')}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Return Modal */}
+      {showReturn && (
+        <Modal title={t('processReturn')} onClose={() => setShowReturn(false)}>
+          <div className="space-y-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-semibold space-y-1 shadow-inner">
+              <p className="font-extrabold text-gray-900 text-base">{customer?.name}</p>
+              <p className="text-gray-500">{item?.name}</p>
+              <p className="text-gray-600 font-bold">{t('depositAmount')}: {fmt(rental.depositAmount)}</p>
+            </div>
+
+            <div>
+              <Input label={t('actualReturnDate')} type="date" required value={returnForm.actualReturnDate} onChange={e => setReturnForm(f => ({ ...f, actualReturnDate: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Input label={t('depositToReturn').replace(' (₹)', '')} type="number" value={returnForm.depositReturned} onChange={e => setReturnForm(f => ({ ...f, depositReturned: e.target.value }))} />
+              </div>
+              <div>
+                <Input label={t('penalty').replace(' (₹)', '')} type="number" value={returnForm.penaltyAmount} onChange={e => setReturnForm(f => ({ ...f, penaltyAmount: e.target.value }))} placeholder="0" />
+              </div>
+            </div>
+            <div>
+              <label className="label">{t('paymentMethod')}</label>
+              <select className="input-base bg-white border-2 border-gray-200 focus:border-brand-500 min-h-[44px] text-gray-950 font-bold" value={returnForm.paymentMethod} onChange={e => setReturnForm(f => ({ ...f, paymentMethod: e.target.value }))}>
+                <option value="cash">CASH</option>
+                <option value="upi">UPI</option>
+                <option value="card">CARD</option>
+              </select>
+            </div>
+            <div>
+              <Textarea label={t('returnNotes')} rows={2} value={returnForm.returnNotes} onChange={e => setReturnForm(f => ({ ...f, returnNotes: e.target.value }))} placeholder="Condition, damages, etc." />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="secondary" className="flex-1" onClick={() => setShowReturn(false)}>{t('cancel')}</Button>
+              <Button className="flex-1" loading={processing} onClick={handleReturn}>{t('confirmReturn')}</Button>
             </div>
           </div>
         </Modal>

@@ -213,7 +213,7 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
             toast.loading(`Uploading document ${count} of ${fileMap.length}...`, { id: 'doc-upload' });
             
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', file, file.name || 'document.jpg');
             formData.append('idType', idType);
             formData.append('side', side);
             await customersAPI.uploadId(targetCustomerId, formData);
@@ -229,7 +229,7 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
           toast.loading('Uploading vehicle photo...', { id: 'vehicle-photo' });
           const photoData = new FormData();
           const compressedPhoto = await compressImage(vehiclePhoto);
-          photoData.append('photo', compressedPhoto);
+          photoData.append('photo', compressedPhoto, compressedPhoto.name || 'photo.jpg');
           await inventoryAPI.uploadPhoto(createdVehicleId, photoData);
           toast.success('Vehicle photo uploaded successfully!', { id: 'vehicle-photo' });
         }

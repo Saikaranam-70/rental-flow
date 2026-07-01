@@ -219,6 +219,7 @@ export default function Rentals() {
                         href={waLink}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={e => e.stopPropagation()}
                         className="p-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl shadow-sm transition-all duration-150 active:scale-95 flex items-center justify-center border border-green-600/10"
                         title={t('sendWhatsAppAlert')}
                       >
@@ -227,10 +228,10 @@ export default function Rentals() {
 
                       {r.status !== 'returned' && r.status !== 'cancelled' && (
                         <div className="flex gap-1.5">
-                          <Button size="sm" variant="secondary" className="min-h-[38px]" onClick={() => { setExtendModal(r); setExtendForm({ newReturnDate: '', reason: '' }); }}>
+                          <Button size="sm" variant="secondary" className="min-h-[38px]" onClick={(e) => { e.stopPropagation(); setExtendModal(r); setExtendForm({ newReturnDate: '', reason: '' }); }}>
                             {t('extend')}
                           </Button>
-                          <Button size="sm" className="min-h-[38px]" onClick={() => { setReturnModal(r); setReturnForm({ actualReturnDate: new Date().toISOString().split('T')[0], depositReturned: r.depositAmount, penaltyAmount: '', paymentMethod: 'cash', returnNotes: '' }); }}>
+                          <Button size="sm" className="min-h-[38px]" onClick={(e) => { e.stopPropagation(); setReturnModal(r); setReturnForm({ actualReturnDate: new Date().toISOString().split('T')[0], depositReturned: r.depositAmount, penaltyAmount: '', paymentMethod: 'cash', returnNotes: '' }); }}>
                             {t('returnBtn').replace(' ✓', '')}
                           </Button>
                         </div>
