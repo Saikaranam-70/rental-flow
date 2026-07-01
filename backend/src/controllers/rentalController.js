@@ -299,7 +299,10 @@ exports.processReturn = catchAsync(async (req, res, next) => {
   const actualDays = calcDays(rental.startDate, returnDate);
   const extraDays = Math.max(0, actualDays - rental.totalDays);
   const lateFee = extraDays * (rental.lateFeePerDay || rental.dailyRate);
-  const penalty = parseFloat(penaltyAmount) || lateFee;
+  let penalty = parseFloat(penaltyAmount);
+  if (isNaN(penalty)) {
+    penalty = lateFee;
+  }
 
   const finalAmount = (actualDays * rental.dailyRate) + penalty - rental.discountAmount;
   const totalPaid = rental.payments.filter(p => p.type !== 'refund').reduce((s, p) => s + p.amount, 0);
@@ -319,7 +322,10 @@ exports.processReturn = catchAsync(async (req, res, next) => {
   }
 
   // Deposit refund entry
-  const depositReturn = parseFloat(depositReturned) ?? rental.depositAmount;
+  let depositReturn = parseFloat(depositReturned);
+  if (isNaN(depositReturn)) {
+    depositReturn = rental.depositAmount || 0;
+  }
   if (depositReturn > 0) {
     newPayments.push({
       amount: depositReturn,

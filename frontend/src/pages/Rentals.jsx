@@ -305,6 +305,13 @@ export default function Rentals() {
           </div>
         </Modal>
       )}
+      {/* New Rental Modal */}
+      {showNew && (
+        <NewRentalModal 
+          onClose={() => setShowNew(false)} 
+          onSuccess={() => qc.invalidateQueries('rentals')} 
+        />
+      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { customersAPI, inventoryAPI, rentalsAPI } from '../../api';
 import { Modal, Button, Input, Textarea } from '../ui';
-import { fmt, categoryIcon, getErrorMessage } from '../../utils/helpers';
+import { fmt, categoryIcon, getErrorMessage, compressImage } from '../../utils/helpers';
 import useLangStore, { getWhatsAppLink } from '../../store/langStore';
 import useAuthStore from '../../store/authStore';
 import { ClipboardList, Search, Info, Check, Shield, FileText, Upload, Printer, MessageCircle, AlertTriangle } from 'lucide-react';
@@ -190,20 +190,20 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
         const fileMap = [];
 
         // Aadhaar
-        if (files.aadhaar_front) fileMap.push(['aadhaar', 'front', files.aadhaar_front]);
-        if (files.aadhaar_back) fileMap.push(['aadhaar', 'back', files.aadhaar_back]);
+        if (files.aadhaar_front) fileMap.push(['aadhaar', 'front', await compressImage(files.aadhaar_front)]);
+        if (files.aadhaar_back) fileMap.push(['aadhaar', 'back', await compressImage(files.aadhaar_back)]);
 
         // DL
-        if (files.dl_front) fileMap.push(['dl', 'front', files.dl_front]);
-        if (files.dl_back) fileMap.push(['dl', 'back', files.dl_back]);
+        if (files.dl_front) fileMap.push(['dl', 'front', await compressImage(files.dl_front)]);
+        if (files.dl_back) fileMap.push(['dl', 'back', await compressImage(files.dl_back)]);
 
         // Other documents
         if (otherDocType === 'passport') {
-          if (files.passport_front) fileMap.push(['passport', 'front', files.passport_front]);
-          if (files.passport_back) fileMap.push(['passport', 'back', files.passport_back]);
+          if (files.passport_front) fileMap.push(['passport', 'front', await compressImage(files.passport_front)]);
+          if (files.passport_back) fileMap.push(['passport', 'back', await compressImage(files.passport_back)]);
         } else if (otherDocType === 'voterid') {
-          if (files.voterid_front) fileMap.push(['voterid', 'front', files.voterid_front]);
-          if (files.voterid_back) fileMap.push(['voterid', 'back', files.voterid_back]);
+          if (files.voterid_front) fileMap.push(['voterid', 'front', await compressImage(files.voterid_front)]);
+          if (files.voterid_back) fileMap.push(['voterid', 'back', await compressImage(files.voterid_back)]);
         }
 
         if (fileMap.length > 0) {
@@ -228,7 +228,8 @@ export default function NewRentalModal({ onClose, onSuccess, preselectedVehicleI
         if (createdVehicleId) {
           toast.loading('Uploading vehicle photo...', { id: 'vehicle-photo' });
           const photoData = new FormData();
-          photoData.append('photo', vehiclePhoto);
+          const compressedPhoto = await compressImage(vehiclePhoto);
+          photoData.append('photo', compressedPhoto);
           await inventoryAPI.uploadPhoto(createdVehicleId, photoData);
           toast.success('Vehicle photo uploaded successfully!', { id: 'vehicle-photo' });
         }
