@@ -81,6 +81,7 @@ export const cn = (...classes) => classes.filter(Boolean).join(' ');
 export const getErrorMessage = (err) =>
   err?.response?.data?.message || err?.message || 'Something went wrong';
 
+// Compress image before upload
 export const compressImage = (file, maxWidth = 1280, maxHeight = 1280, quality = 0.75) => {
   return new Promise((resolve) => {
     if (!file || file.type === 'application/pdf') {

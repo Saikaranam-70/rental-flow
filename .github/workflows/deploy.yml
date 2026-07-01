@@ -21,7 +21,8 @@ jobs:
           script: |
             cd ~/rental-flow
 
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             cd frontend
             npm install
